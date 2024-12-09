@@ -29,8 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Manejador del selector de fecha
     dateSelector.addEventListener('change', function(e) {
-        selectedDate = e.target.value;
-        window.location.href = `/?date=${selectedDate}`;
+        window.location.href = `/activities?date=${e.target.value}`;
     });
 
     // Manejador del envío del formulario
@@ -137,7 +136,6 @@ async function editActivity(button) {
     const id = row.dataset.id;
     const cells = row.cells;
 
-    // Convertir hora de 12h a 24h para edición
     const startTime24 = format24Hour(cells[0].textContent.trim());
     const endTime24 = format24Hour(cells[1].textContent.trim());
 
@@ -185,6 +183,38 @@ async function editActivity(button) {
     } catch (error) {
         console.error('Error:', error);
         showToast('Error al editar la actividad', 'error');
+    }
+}
+
+function format12Hour(time24) {
+    if (!time24) return '';
+    try {
+        const [hours24, minutes] = time24.split(':');
+        const hours = parseInt(hours24);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const hours12 = hours % 12 || 12;
+        return `${hours12.toString().padStart(2, '0')}:${minutes} ${period}`;
+    } catch (error) {
+        return time24;
+    }
+}
+
+function format24Hour(time12) {
+    if (!time12) return '';
+    try {
+        const [time, period] = time12.split(' ');
+        let [hours, minutes] = time.split(':');
+        hours = parseInt(hours);
+        
+        if (period === 'PM' && hours !== 12) {
+            hours += 12;
+        } else if (period === 'AM' && hours === 12) {
+            hours = 0;
+        }
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    } catch (error) {
+        return time12;
     }
 }
 
@@ -247,36 +277,4 @@ function showConfirmDialog(title, message) {
             resolve(true);
         };
     });
-}
-
-function format12Hour(time24) {
-    if (!time24) return '';
-    try {
-        const [hours24, minutes] = time24.split(':');
-        const hours = parseInt(hours24);
-        const period = hours >= 12 ? 'PM' : 'AM';
-        const hours12 = hours % 12 || 12;
-        return `${hours12.toString().padStart(2, '0')}:${minutes} ${period}`;
-    } catch (error) {
-        return time24;
-    }
-}
-
-function format24Hour(time12) {
-    if (!time12) return '';
-    try {
-        const [time, period] = time12.split(' ');
-        let [hours, minutes] = time.split(':');
-        hours = parseInt(hours);
-        
-        if (period === 'PM' && hours !== 12) {
-            hours += 12;
-        } else if (period === 'AM' && hours === 12) {
-            hours = 0;
-        }
-        
-        return `${hours.toString().padStart(2, '0')}:${minutes}`;
-    } catch (error) {
-        return time12;
-    }
 }
