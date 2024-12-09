@@ -75,7 +75,35 @@ body {
     flex-wrap: wrap;
 }
 
-.location-selector, .date-selector {
+.download-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.date-range-download {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.date-range-inputs {
+    display: flex;
+    gap: 10px;
+}
+
+.date-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.date-input-group label {
+    font-size: 0.9em;
+    color: var(--primary-color);
+}
+
+.location-selector, .date-selector, .date-input {
     width: 100%;
     padding: 12px;
     border: 2px solid #dfe6e9;
@@ -85,7 +113,7 @@ body {
     cursor: pointer;
 }
 
-.location-selector:focus, .date-selector:focus {
+.location-selector:focus, .date-selector:focus, .date-input:focus {
     border-color: var(--secondary-color);
     outline: none;
 }
@@ -410,6 +438,14 @@ tr:hover {
     .action-buttons {
         flex-direction: row;
         justify-content: center;
+    }
+
+    .date-range-download {
+        flex-direction: column;
+    }
+
+    .date-range-inputs {
+        width: 100%;
     }
 
     th, td {
