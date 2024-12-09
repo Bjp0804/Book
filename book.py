@@ -88,53 +88,69 @@ def activities():
                          activities=activities,
                          selected_date=selected_date)
 
+# Diccionarios para traducción de fechas
+months_es = {
+    'January': 'enero',
+    'February': 'febrero',
+    'March': 'marzo',
+    'April': 'abril',
+    'May': 'mayo',
+    'June': 'junio',
+    'July': 'julio',
+    'August': 'agosto',
+    'September': 'septiembre',
+    'October': 'octubre',
+    'November': 'noviembre',
+    'December': 'diciembre'
+}
+
+days_es = {
+    'Monday': 'lunes',
+    'Tuesday': 'martes',
+    'Wednesday': 'miércoles',
+    'Thursday': 'jueves',
+    'Friday': 'viernes',
+    'Saturday': 'sábado',
+    'Sunday': 'domingo'
+}
+
 @app.route('/download_report')
 def download_report():
-    selected_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
-    
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    single_date = request.args.get('date')
+
+    if start_date and end_date:
+        # Lógica para rango de fechas
+        date_range = [start_date, end_date]
+    elif single_date:
+        # Lógica para fecha única
+        date_range = [single_date, single_date]
+    else:
+        # Si no se proporciona ninguna fecha, usar la fecha actual
+        today = datetime.now().strftime("%Y-%m-%d")
+        date_range = [today, today]
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute('''
-                SELECT location, start_time, end_time, description 
+                SELECT date, location, start_time, end_time, description 
                 FROM activities 
-                WHERE date = %s 
-                ORDER BY start_time::time ASC
-            ''', (selected_date,))
+                WHERE date BETWEEN %s AND %s 
+                ORDER BY date::date ASC, start_time::time ASC
+            ''', date_range)
             
-            all_activities = []
+            activities_by_date = {}
             for row in cur.fetchall():
-                all_activities.append({
-                    'start_time': row[1],
-                    'end_time': row[2],
-                    'description': row[3],
-                    'location': row[0]
+                date = row[0]
+                if date not in activities_by_date:
+                    activities_by_date[date] = []
+                activities_by_date[date].append({
+                    'start_time': row[2],
+                    'end_time': row[3],
+                    'description': row[4],
+                    'location': row[1]
                 })
-
-    # Diccionarios para traducción de fechas
-    months_es = {
-        'January': 'enero',
-        'February': 'febrero',
-        'March': 'marzo',
-        'April': 'abril',
-        'May': 'mayo',
-        'June': 'junio',
-        'July': 'julio',
-        'August': 'agosto',
-        'September': 'septiembre',
-        'October': 'octubre',
-        'November': 'noviembre',
-        'December': 'diciembre'
-    }
-
-    days_es = {
-        'Monday': 'lunes',
-        'Tuesday': 'martes',
-        'Wednesday': 'miércoles',
-        'Thursday': 'jueves',
-        'Friday': 'viernes',
-        'Saturday': 'sábado',
-        'Sunday': 'domingo'
-    }
 
     doc = SimpleDocTemplate(
         "reporte_actividades.pdf",
@@ -166,101 +182,101 @@ def download_report():
         spaceAfter=30
     ))
 
-    elements = []
+    all_elements = []
     
-    elements.append(Paragraph("Registro de Actividades", styles['MainTitle']))
-    
-    # Formatear y traducir la fecha
-    date_obj = datetime.strptime(selected_date, '%Y-%m-%d')
-    date_en = date_obj.strftime('%A %d de %B del %Y')
-    
-    # Traducir el día y el mes
-    for en, es in days_es.items():
-        date_en = date_en.replace(en, es)
-    for en, es in months_es.items():
-        date_en = date_en.replace(en, es)
-    
-    elements.append(Paragraph(date_en.capitalize(), styles['DateStyle']))
-    
-    table_data = [['Hora Inicio', 'Hora Fin', 'Descripción', 'Lugar']]
-    
-    def convert_to_12h(time_str):
-        hour = int(time_str.split(':')[0])
-        minute = time_str.split(':')[1]
-        period = 'AM' if hour < 12 else 'PM'
-        if hour == 0:
-            hour = 12
-        elif hour > 12:
-            hour -= 12
-        return f"{hour:02d}:{minute} {period}"
-    
-    for activity in all_activities:
-        table_data.append([
-            convert_to_12h(activity['start_time']),
-            convert_to_12h(activity['end_time']),
-            activity['description'],
-            activity['location']
-        ])
-    
-    if len(table_data) > 1:
-        available_width = doc.width
+    for date in sorted(activities_by_date.keys()):
+        elements = []
         
-        def get_max_width(col_index):
-            return max(len(str(row[col_index])) for row in table_data) * 7
+        elements.append(Paragraph("Registro de Actividades", styles['MainTitle']))
         
-        time_width = max(get_max_width(0), get_max_width(1))
-        location_width = get_max_width(3)
-        description_width = available_width - (time_width * 2) - location_width - 40
+        date_obj = datetime.strptime(date, '%Y-%m-%d')
+        date_text = date_obj.strftime('%A %d de %B del %Y')
         
-        time_width = max(time_width, 90)
-        location_width = max(location_width, 100)
+        for en, es in days_es.items():
+            date_text = date_text.replace(en, es)
+        for en, es in months_es.items():
+            date_text = date_text.replace(en, es)
         
-        table = Table(table_data, colWidths=[time_width, time_width, description_width, location_width])
-        table.setStyle(TableStyle([
-            ('FONT', (0, 0), (-1, 0), 'Montserrat-Bold'),
-            ('FONT', (0, 1), (-1, -1), 'Montserrat'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGNMENT', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('PADDING', (0, 0), (-1, -1), 12),
-            ('LEADING', (0, 0), (-1, -1), 12),
-            ('ALIGN', (2, 1), (2, -1), 'LEFT'),
-            ('WORDWRAP', (0, 0), (-1, -1), True),
-        ]))
-        elements.append(table)
-    else:
-        no_activities_style = ParagraphStyle(
-            'NoActivities',
-            parent=styles['Normal'],
-            fontName='Montserrat-Italic',
+        elements.append(Paragraph(date_text.capitalize(), styles['DateStyle']))
+        
+        table_data = [['Hora Inicio', 'Hora Fin', 'Descripción', 'Lugar']]
+        
+        for activity in activities_by_date[date]:
+            table_data.append([
+                convert_to_12h(activity['start_time']),
+                convert_to_12h(activity['end_time']),
+                activity['description'],
+                activity['location']
+            ])
+        
+        if len(table_data) > 1:
+            available_width = doc.width
+            
+            def get_max_width(col_index):
+                return max(len(str(row[col_index])) for row in table_data) * 7
+            
+            time_width = max(get_max_width(0), get_max_width(1))
+            location_width = get_max_width(3)
+            description_width = available_width - (time_width * 2) - location_width - 40
+            
+            time_width = max(time_width, 90)
+            location_width = max(location_width, 100)
+            
+            table = Table(table_data, colWidths=[time_width, time_width, description_width, location_width])
+            table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, 0), 'Montserrat-Bold'),
+                ('FONT', (0, 1), (-1, -1), 'Montserrat'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGNMENT', (0, 0), (-1, -1), 'CENTER'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('PADDING', (0, 0), (-1, -1), 12),
+                ('LEADING', (0, 0), (-1, -1), 12),
+                ('ALIGN', (2, 1), (2, -1), 'LEFT'),
+                ('WORDWRAP', (0, 0), (-1, -1), True),
+            ]))
+            elements.append(table)
+        else:
+            no_activities_style = ParagraphStyle(
+                'NoActivities',
+                parent=styles['Normal'],
+                fontName='Montserrat-Italic',
+                fontSize=12,
+                alignment=TA_CENTER,
+                textColor=colors.HexColor('#7f8c8d')
+            )
+            elements.append(Paragraph("No hay actividades registradas para esta fecha", no_activities_style))
+        
+        elements.append(Spacer(1, 50))
+        signature_style = ParagraphStyle(
+            'Signature',
+            fontName='Montserrat',
             fontSize=12,
             alignment=TA_CENTER,
-            textColor=colors.HexColor('#7f8c8d')
+            spaceBefore=15
         )
-        elements.append(Paragraph("No hay actividades registradas para esta fecha", no_activities_style))
+        elements.append(Paragraph("_" * 40, signature_style))
+        elements.append(Paragraph("Firma del Coordinador", signature_style))
+        
+        all_elements.extend(elements)
+        if date != sorted(activities_by_date.keys())[-1]:
+            all_elements.append(PageBreak())
     
-    elements.append(Spacer(1, 50))
-    signature_style = ParagraphStyle(
-        'Signature',
-        fontName='Montserrat',
-        fontSize=12,
-        alignment=TA_CENTER,
-        spaceBefore=15
-    )
-    elements.append(Paragraph("_" * 40, signature_style))
-    elements.append(Paragraph("Firma del Coordinador", signature_style))
+    doc.build(all_elements)
     
-    doc.build(elements)
+    if start_date and end_date:
+        filename = f'book_actividades_{start_date}_to_{end_date}.pdf'
+    else:
+        filename = f'book_actividades_{single_date or today}.pdf'
     
     return send_file(
         'reporte_actividades.pdf',
         as_attachment=True,
-        download_name=f'book_actividades_{selected_date}.pdf'
+        download_name=filename
     )
     
 @app.route('/add_activity', methods=['POST'])
