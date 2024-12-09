@@ -110,13 +110,31 @@ def download_report():
                     'location': row[0]
                 })
 
-    # Manejo mejorado del locale
-    try:
-        locale.setlocale(locale.LC_TIME, '')  # Usar locale por defecto
-        date_format = '%A %d de %B del %Y'
-    except:
-        # Si falla, usar formato numérico
-        date_format = '%d/%m/%Y'
+    # Diccionarios para traducción de fechas
+    months_es = {
+        'January': 'enero',
+        'February': 'febrero',
+        'March': 'marzo',
+        'April': 'abril',
+        'May': 'mayo',
+        'June': 'junio',
+        'July': 'julio',
+        'August': 'agosto',
+        'September': 'septiembre',
+        'October': 'octubre',
+        'November': 'noviembre',
+        'December': 'diciembre'
+    }
+
+    days_es = {
+        'Monday': 'lunes',
+        'Tuesday': 'martes',
+        'Wednesday': 'miércoles',
+        'Thursday': 'jueves',
+        'Friday': 'viernes',
+        'Saturday': 'sábado',
+        'Sunday': 'domingo'
+    }
 
     doc = SimpleDocTemplate(
         "reporte_actividades.pdf",
@@ -151,8 +169,18 @@ def download_report():
     elements = []
     
     elements.append(Paragraph("Registro de Actividades", styles['MainTitle']))
-    date_text = datetime.strptime(selected_date, '%Y-%m-%d').strftime(date_format)
-    elements.append(Paragraph(date_text.capitalize(), styles['DateStyle']))
+    
+    # Formatear y traducir la fecha
+    date_obj = datetime.strptime(selected_date, '%Y-%m-%d')
+    date_en = date_obj.strftime('%A %d de %B del %Y')
+    
+    # Traducir el día y el mes
+    for en, es in days_es.items():
+        date_en = date_en.replace(en, es)
+    for en, es in months_es.items():
+        date_en = date_en.replace(en, es)
+    
+    elements.append(Paragraph(date_en.capitalize(), styles['DateStyle']))
     
     table_data = [['Hora Inicio', 'Hora Fin', 'Descripción', 'Lugar']]
     
