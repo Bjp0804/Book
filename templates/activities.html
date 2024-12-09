@@ -30,9 +30,26 @@
                     </div>
                 </div>
                 <div class="actions-wrapper">
-                    <a href="{{ url_for('download_report', date=selected_date) }}" class="btn-download">
-                        <i class="fas fa-download"></i> Descargar PDF
-                    </a>
+                    <div class="download-options">
+                        <a href="{{ url_for('download_report', date=selected_date) }}" class="btn-download">
+                            <i class="fas fa-download"></i> Descargar PDF
+                        </a>
+                        <div class="date-range-download">
+                            <div class="date-range-inputs">
+                                <div class="date-input-group">
+                                    <label>Desde:</label>
+                                    <input type="date" id="startDate" class="date-input">
+                                </div>
+                                <div class="date-input-group">
+                                    <label>Hasta:</label>
+                                    <input type="date" id="endDate" class="date-input">
+                                </div>
+                            </div>
+                            <button onclick="downloadDateRange()" class="btn-download">
+                                <i class="fas fa-download"></i> Descargar Rango
+                            </button>
+                        </div>
+                    </div>
                     <button onclick="clearDatabase()" class="btn-clear">
                         <i class="fas fa-trash-alt"></i> Limpiar BD
                     </button>
