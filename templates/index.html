@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book - Registro de Actividades</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="header-title">
+                <h1>Book - Registro de Actividades</h1>
+            </div>
+            <div class="header-controls">
+                <div class="control-group">
+                    <div class="location-wrapper">
+                        <select id="locationSelector" class="location-selector">
+                            <option value="Tunshuruco">Tunshuruco</option>
+                            <option value="Tuctu">Tuctu</option>
+                            <option value="Carhuacoto">Carhuacoto</option>
+                            <option value="Kingsmill">Kingsmill</option>
+                            <option value="Mina">Mina</option>
+                        </select>
+                    </div>
+                    <div class="date-wrapper">
+                        <input type="date" id="dateSelector" value="{{ selected_date }}" name="date">
+                    </div>
+                </div>
+                <div class="actions-wrapper">
+                    <a href="{{ url_for('download_report', date=selected_date) }}" class="btn-download">
+                        <i class="fas fa-download"></i> Descargar PDF
+                    </a>
+                    <button onclick="clearDatabase()" class="btn-clear">
+                        <i class="fas fa-trash-alt"></i> Limpiar BD
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Activity Form -->
+            <section class="form-section">
+                <form id="activityForm" class="activity-form">
+                    <div class="time-group">
+                        <div class="form-field">
+                            <label for="start_time">
+                                <i class="fas fa-clock"></i> Hora Inicio
+                            </label>
+                            <input type="time" id="start_time" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="end_time">
+                                <i class="fas fa-clock"></i> Hora Fin
+                            </label>
+                            <input type="time" id="end_time" required>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label for="description">
+                            <i class="fas fa-tasks"></i> Descripción
+                        </label>
+                        <input type="text" id="description" placeholder="Describe la actividad" required>
+                    </div>
+                    <div class="form-field hidden">
+                        <input type="text" id="location" readonly>
+                    </div>
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-plus"></i> Registrar Actividad
+                    </button>
+                </form>
+            </section>
+
+            <!-- Activities Table -->
+            <section class="table-section">
+                <div class="table-container">
+                    <table id="activitiesTable">
+                        <thead>
+                            <tr>
+                                <th>Inicio</th>
+                                <th>Fin</th>
+                                <th>Descripción</th>
+                                <th>Lugar</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in activities %}
+                            <tr data-id="{{ activity[0] }}">
+                                <td class="time-cell">{{ activity[1] }}</td>
+                                <td class="time-cell">{{ activity[2] }}</td>
+                                <td>{{ activity[3] }}</td>
+                                <td>{{ activity[4] }}</td>
+                                <td class="action-buttons">
+                                    <button class="btn-edit" onclick="editActivity(this)" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-delete" onclick="deleteActivity(this)" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not activities %}
+                    <div class="no-activities">
+                        <i class="fas fa-calendar-times"></i>
+                        <p>No hay actividades registradas para esta fecha</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Confirm Dialog Template -->
+    <div id="confirmDialog" class="confirm-dialog" style="display: none;">
+        <div class="confirm-dialog-content">
+            <h3 id="confirmTitle"></h3>
+            <p id="confirmMessage"></p>
+            <div class="confirm-dialog-buttons">
+                <button class="btn-secondary" id="cancelButton">Cancelar</button>
+                <button class="btn-danger" id="confirmButton">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
