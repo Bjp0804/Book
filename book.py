@@ -110,10 +110,13 @@ def download_report():
                     'location': row[0]
                 })
 
+    # Manejo mejorado del locale
     try:
-        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+        locale.setlocale(locale.LC_TIME, '')  # Usar locale por defecto
+        date_format = '%A %d de %B del %Y'
     except:
-        locale.setlocale(locale.LC_TIME, 'Spanish_Spain.1252')
+        # Si falla, usar formato numérico
+        date_format = '%d/%m/%Y'
 
     doc = SimpleDocTemplate(
         "reporte_actividades.pdf",
@@ -148,7 +151,7 @@ def download_report():
     elements = []
     
     elements.append(Paragraph("Registro de Actividades", styles['MainTitle']))
-    date_text = datetime.strptime(selected_date, '%Y-%m-%d').strftime('%A %d de %B del %Y')
+    date_text = datetime.strptime(selected_date, '%Y-%m-%d').strftime(date_format)
     elements.append(Paragraph(date_text.capitalize(), styles['DateStyle']))
     
     table_data = [['Hora Inicio', 'Hora Fin', 'Descripción', 'Lugar']]
@@ -231,7 +234,7 @@ def download_report():
         as_attachment=True,
         download_name=f'book_actividades_{selected_date}.pdf'
     )
-
+    
 @app.route('/add_activity', methods=['POST'])
 def add_activity():
     try:
