@@ -56,7 +56,17 @@ def format_time_12h(time_str):
 @app.route('/')
 def welcome():
     return render_template('welcome.html')
-
+    
+def get_db_connection():
+    return psycopg2.connect(
+        dbname=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('DB_HOST'),
+        port=os.environ.get('DB_PORT'),
+        sslmode='require'
+    )
+    
 @app.route('/activities')
 def activities():
     selected_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
