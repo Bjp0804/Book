@@ -15,39 +15,47 @@ import locale
 app = Flask(__name__)
 app.title = "Book - Registro de Actividades"
 
-# Registrar fuentes Montserrat
-fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
-pdfmetrics.registerFont(TTFont('Montserrat', os.path.join(fonts_dir, 'Montserrat-Regular.ttf')))
-pdfmetrics.registerFont(TTFont('Montserrat-Bold', os.path.join(fonts_dir, 'Montserrat-Bold.ttf')))
-pdfmetrics.registerFont(TTFont('Montserrat-Italic', os.path.join(fonts_dir, 'Montserrat-Italic.ttf')))
+def get_db_connection():
+    return psycopg2.connect(
+        dbname=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('DB_HOST'),
+        port=os.environ.get('DB_PORT'),
+        sslmode='require'
+    )
 
-# Registrar familia de fuentes
-pdfmetrics.registerFontFamily(
-    'Montserrat',
-    normal='Montserrat',
-    bold='Montserrat-Bold',
-    italic='Montserrat-Italic'
-)
+# Registrar fuentes Montserrat
+try:
+    fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
+    pdfmetrics.registerFont(TTFont('Montserrat', os.path.join(fonts_dir, 'Montserrat-Regular.ttf')))
+    pdfmetrics.registerFont(TTFont('Montserrat-Bold', os.path.join(fonts_dir, 'Montserrat-Bold.ttf')))
+    pdfmetrics.registerFont(TTFont('Montserrat-Italic', os.path.join(fonts_dir, 'Montserrat-Italic.ttf')))
+
+    # Registrar familia de fuentes
+    pdfmetrics.registerFontFamily(
+        'Montserrat',
+        normal='Montserrat',
+        bold='Montserrat-Bold',
+        italic='Montserrat-Italic'
+    )
+except Exception as e:
+    print(f"Error loading fonts: {e}")
 
 def init_db():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS activities (
-            id SERIAL PRIMARY KEY,
-            date TEXT,
-            start_time TEXT,
-            end_time TEXT,
-            description TEXT,
-            location TEXT
-        )
-    ''')
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# Inicializar la base de datos al arrancar la aplicación
-init_db()
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS activities (
+                    id SERIAL PRIMARY KEY,
+                    date TEXT,
+                    start_time TEXT,
+                    end_time TEXT,
+                    description TEXT,
+                    location TEXT
+                )
+            ''')
+            conn.commit()
 
 def format_time_12h(time_str):
     """Convierte formato de 24h a 12h con AM/PM"""
@@ -61,34 +69,20 @@ def format_time_12h(time_str):
 @app.route('/')
 def welcome():
     return render_template('welcome.html')
-    
-def get_db_connection():
-    return psycopg2.connect(
-        dbname=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
-        host=os.environ.get('DB_HOST'),
-        port=os.environ.get('DB_PORT'),
-        sslmode='require'
-    )
-    
+
 @app.route('/activities')
 def activities():
     selected_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
     
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
-    cur.execute('''
-        SELECT id, start_time, end_time, description, location 
-        FROM activities 
-        WHERE date = %s 
-        ORDER BY start_time::time ASC
-    ''', (selected_date,))
-    activities = cur.fetchall()
-    
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('''
+                SELECT id, start_time, end_time, description, location 
+                FROM activities 
+                WHERE date = %s 
+                ORDER BY start_time::time ASC
+            ''', (selected_date,))
+            activities = cur.fetchall()
     
     return render_template('activities.html', 
                          activities=activities,
@@ -98,29 +92,24 @@ def activities():
 def download_report():
     selected_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
     
-    conn = sqlite3.connect('activities.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT location, start_time, end_time, description 
-        FROM activities 
-        WHERE date = ? 
-        ORDER BY time(start_time) ASC
-    ''', (selected_date,))
-    
-    # Crear lista de actividades
-    all_activities = []
-    for row in cursor.fetchall():
-        all_activities.append({
-            'start_time': row[1],
-            'end_time': row[2],
-            'description': row[3],
-            'location': row[0]
-        })
-    
-    conn.close()
-    
-    # Generar PDF
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('''
+                SELECT location, start_time, end_time, description 
+                FROM activities 
+                WHERE date = %s 
+                ORDER BY start_time::time ASC
+            ''', (selected_date,))
+            
+            all_activities = []
+            for row in cur.fetchall():
+                all_activities.append({
+                    'start_time': row[1],
+                    'end_time': row[2],
+                    'description': row[3],
+                    'location': row[0]
+                })
+
     try:
         locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
     except:
@@ -158,15 +147,12 @@ def download_report():
 
     elements = []
     
-    # Título y fecha
     elements.append(Paragraph("Registro de Actividades", styles['MainTitle']))
     date_text = datetime.strptime(selected_date, '%Y-%m-%d').strftime('%A %d de %B del %Y')
     elements.append(Paragraph(date_text.capitalize(), styles['DateStyle']))
     
-    # Crear tabla
     table_data = [['Hora Inicio', 'Hora Fin', 'Descripción', 'Lugar']]
     
-    # Función para convertir hora a formato 12h con AM/PM
     def convert_to_12h(time_str):
         hour = int(time_str.split(':')[0])
         minute = time_str.split(':')[1]
@@ -177,7 +163,6 @@ def download_report():
             hour -= 12
         return f"{hour:02d}:{minute} {period}"
     
-    # Agregar actividades a la tabla
     for activity in all_activities:
         table_data.append([
             convert_to_12h(activity['start_time']),
@@ -187,21 +172,15 @@ def download_report():
         ])
     
     if len(table_data) > 1:
-        # Calcular el ancho disponible
         available_width = doc.width
         
-        # Función para calcular el ancho máximo del texto
         def get_max_width(col_index):
             return max(len(str(row[col_index])) for row in table_data) * 7
         
-        # Calcular anchos mínimos para cada columna
         time_width = max(get_max_width(0), get_max_width(1))
         location_width = get_max_width(3)
-        
-        # La columna de descripción tomará el espacio restante
         description_width = available_width - (time_width * 2) - location_width - 40
         
-        # Asegurar anchos mínimos
         time_width = max(time_width, 90)
         location_width = max(location_width, 100)
         
@@ -234,7 +213,6 @@ def download_report():
         )
         elements.append(Paragraph("No hay actividades registradas para esta fecha", no_activities_style))
     
-    # Firma
     elements.append(Spacer(1, 50))
     signature_style = ParagraphStyle(
         'Signature',
@@ -246,7 +224,6 @@ def download_report():
     elements.append(Paragraph("_" * 40, signature_style))
     elements.append(Paragraph("Firma del Coordinador", signature_style))
     
-    # Generar PDF
     doc.build(elements)
     
     return send_file(
@@ -259,15 +236,14 @@ def download_report():
 def add_activity():
     try:
         data = request.get_json()
-        conn = sqlite3.connect('activities.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO activities (date, start_time, end_time, description, location)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (data['date'], data['start_time'], data['end_time'], 
-              data['description'], data['location']))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('''
+                    INSERT INTO activities (date, start_time, end_time, description, location)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (data['date'], data['start_time'], data['end_time'], 
+                      data['description'], data['location']))
+                conn.commit()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -276,16 +252,15 @@ def add_activity():
 def edit_activity(id):
     try:
         data = request.get_json()
-        conn = sqlite3.connect('activities.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE activities 
-            SET start_time = ?, end_time = ?, description = ?, location = ?
-            WHERE id = ?
-        ''', (data['start_time'], data['end_time'], data['description'], 
-              data['location'], id))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('''
+                    UPDATE activities 
+                    SET start_time = %s, end_time = %s, description = %s, location = %s
+                    WHERE id = %s
+                ''', (data['start_time'], data['end_time'], data['description'], 
+                      data['location'], id))
+                conn.commit()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -293,11 +268,10 @@ def edit_activity(id):
 @app.route('/delete_activity/<int:id>', methods=['DELETE'])
 def delete_activity(id):
     try:
-        conn = sqlite3.connect('activities.db')
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM activities WHERE id = ?', (id,))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM activities WHERE id = %s', (id,))
+                conn.commit()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -305,15 +279,16 @@ def delete_activity(id):
 @app.route('/clear_database', methods=['POST'])
 def clear_database():
     try:
-        conn = sqlite3.connect('activities.db')
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM activities')
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM activities')
+                conn.commit()
         return jsonify({'success': True, 'message': 'Base de datos limpiada correctamente'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
+# Inicializar la base de datos al arrancar la aplicación
+init_db()
+
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
