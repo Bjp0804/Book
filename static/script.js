@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     locationInput.value = locationSelector.value;
 
+    // Inicializar fechas para el rango
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    startDateInput.value = selectedDate;
+    endDateInput.value = selectedDate;
+
     // Convertir horas a formato 12h en la tabla
     const timeCells = document.querySelectorAll('.time-cell');
     timeCells.forEach(cell => {
@@ -97,6 +103,23 @@ function clearForm() {
     document.getElementById('start_time').value = '';
     document.getElementById('end_time').value = '';
     document.getElementById('description').value = '';
+}
+
+function downloadDateRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        showToast('Por favor, seleccione ambas fechas', 'error');
+        return;
+    }
+
+    if (startDate > endDate) {
+        showToast('La fecha inicial debe ser menor que la fecha final', 'error');
+        return;
+    }
+
+    window.location.href = `/download_report?start_date=${startDate}&end_date=${endDate}`;
 }
 
 async function deleteActivity(button) {
