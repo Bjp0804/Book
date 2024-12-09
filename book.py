@@ -30,11 +30,11 @@ pdfmetrics.registerFontFamily(
 )
 
 def init_db():
-    conn = sqlite3.connect('activities.db')
-    cursor = conn.cursor()
-    cursor.execute('''
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS activities (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             date TEXT,
             start_time TEXT,
             end_time TEXT,
@@ -43,7 +43,11 @@ def init_db():
         )
     ''')
     conn.commit()
+    cur.close()
     conn.close()
+
+# Inicializar la base de datos al arrancar la aplicación
+init_db()
 
 def format_time_12h(time_str):
     """Convierte formato de 24h a 12h con AM/PM"""
