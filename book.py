@@ -57,12 +57,17 @@ def init_db():
             ''')
             conn.commit()
 
-def format_time_12h(time_str):
-    """Convierte formato de 24h a 12h con AM/PM"""
+def convert_to_12h(time_str):
+    """Convierte hora de formato 24h a 12h con AM/PM"""
     try:
-        time_obj = datetime.strptime(time_str, '%H:%M')
-        formatted_time = time_obj.strftime('%I:%M %p').upper()
-        return formatted_time
+        hour = int(time_str.split(':')[0])
+        minute = time_str.split(':')[1]
+        period = 'AM' if hour < 12 else 'PM'
+        if hour == 0:
+            hour = 12
+        elif hour > 12:
+            hour -= 12
+        return f"{hour:02d}:{minute} {period}"
     except:
         return time_str
 
