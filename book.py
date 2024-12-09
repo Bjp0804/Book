@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file
-import sqlite3
+import psycopg2
+from psycopg2.extras import DictCursor
 from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
